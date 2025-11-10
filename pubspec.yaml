@@ -35,6 +35,15 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # Image picker for photo upload
+  image_picker: ^1.0.7
+
+  # Google Maps
+  google_maps_flutter: ^2.5.3
+
+  # HTTP requests (para integração futura com API real)
+  http: ^1.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

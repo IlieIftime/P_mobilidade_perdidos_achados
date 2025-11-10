@@ -1,0 +1,74 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "admin@sos.com",
+      "password": "admin123",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "email": "user@sos.com",
+      "password": "user123",
+      "role": "user"
+    }
+  ],
+  "items": [
+    {
+      "id": 1,
+      "description": "Mochila preta com um livro dentro.",
+      "category": "Acessórios",
+      "status": "aprovado",
+      "imageUrl": "https://via.placeholder.com/300x200?text=Mochila",
+      "location": {
+        "latitude": 38.736946,
+        "longitude": -9.142685
+      }
+    },
+    {
+      "id": 2,
+      "description": "Chaves de casa com um porta-chaves do Star Wars.",
+      "category": "Chaves",
+      "status": "pendente",
+      "imageUrl": "https://via.placeholder.com/300x200?text=Chaves",
+      "location": {
+        "latitude": 38.71667,
+        "longitude": -9.13333
+      }
+    },
+    {
+      "id": 3,
+      "description": "Carteira marrom de couro.",
+      "category": "Documentos",
+      "status": "aprovado",
+      "imageUrl": "https://via.placeholder.com/300x200?text=Carteira",
+      "location": {
+        "latitude": 38.7223,
+        "longitude": -9.1393
+      }
+    },
+    {
+      "id": 4,
+      "description": "Telemóvel Samsung Galaxy S20.",
+      "category": "Eletrônicos",
+      "status": "pendente",
+      "imageUrl": "https://via.placeholder.com/300x200?text=Telemóvel",
+      "location": {
+        "latitude": 38.7436,
+        "longitude": -9.1530
+      }
+    },
+    {
+      "id": 5,
+      "description": "Óculos de sol Ray-Ban.",
+      "category": "Acessórios",
+      "status": "aprovado",
+      "imageUrl": "https://via.placeholder.com/300x200?text=Óculos",
+      "location": {
+        "latitude": 38.7250,
+        "longitude": -9.1500
+      }
+    }
+  ]
+}
+
