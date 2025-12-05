@@ -115,14 +115,43 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Item reportado com sucesso! Aguarde aprovação do administrador.'),
-          backgroundColor: AppColors.success,
-          duration: Duration(seconds: 3),
+      // Mostrar dialog informativo em vez de apenas snackbar
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.check_circle, color: AppColors.success, size: 48),
+          title: const Text('Item Reportado!'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Seu item foi reportado com sucesso!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 12),
+              Text(
+                'O item ficará pendente até que um administrador aprove.',
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Após a aprovação, ele aparecerá na lista para todos os usuários.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Entendi'),
+            ),
+          ],
         ),
       );
 
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;

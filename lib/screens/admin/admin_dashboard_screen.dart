@@ -141,62 +141,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Abas
-          Container(
-            color: Colors.white,
-            child: TabBar(
-              controller: null,
-              tabs: [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Pendentes'),
-                      if (_pendingItems.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.warning,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${_pendingItems.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            // Abas
+            Container(
+              color: Colors.white,
+              child: TabBar(
+                tabs: [
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('Pendentes'),
+                        if (_pendingItems.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${_pendingItems.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Tab(text: 'Todos os Itens'),
-              ],
-              onTap: (index) {
-                setState(() => _selectedTab = index);
-              },
-              labelColor: AppColors.primary,
-              unselectedLabelColor: AppColors.textSecondary,
-              indicatorColor: AppColors.primary,
+                  const Tab(text: 'Todos os Itens'),
+                ],
+                onTap: (index) {
+                  setState(() => _selectedTab = index);
+                },
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textSecondary,
+                indicatorColor: AppColors.primary,
+              ),
             ),
-          ),
 
-          // Conteúdo
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _selectedTab == 0
-                    ? _buildPendingList()
-                    : _buildAllItemsList(),
-          ),
-        ],
+            // Conteúdo
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _selectedTab == 0
+                      ? _buildPendingList()
+                      : _buildAllItemsList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -447,4 +449,3 @@ class _AdminItemCard extends StatelessWidget {
     );
   }
 }
-

@@ -68,7 +68,36 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      body: Stack(
+      body: widget.items.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.map_outlined,
+                    size: 64,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhum item para exibir no mapa',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Reporte um objeto para vê-lo aqui',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Stack(
         children: [
           // Mapa
           GoogleMap(
@@ -77,10 +106,10 @@ class _MapScreenState extends State<MapScreen> {
             onMapCreated: (controller) {
               _mapController = controller;
             },
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
+            myLocationEnabled: false,
+            myLocationButtonEnabled: false,
             zoomControlsEnabled: true,
-            mapToolbarEnabled: true,
+            mapToolbarEnabled: false,
           ),
 
           // Card de informações do item selecionado

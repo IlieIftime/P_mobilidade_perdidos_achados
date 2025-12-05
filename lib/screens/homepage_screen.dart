@@ -5,6 +5,7 @@ import '../services/item_service.dart';
 import '../utils/colors.dart';
 import 'report_form_screen.dart';
 import 'map_screen.dart';
+import 'simple_map_screen.dart';
 import 'login_screen.dart';
 
 class HomepageScreen extends StatefulWidget {
@@ -88,12 +89,38 @@ class _HomepageScreenState extends State<HomepageScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.map),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => MapScreen(items: _items),
-                ),
-              );
+            onPressed: () async {
+              if (_items.isEmpty) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nenhum item para exibir no mapa'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
+
+              if (!mounted) return;
+              final navigator = Navigator.of(context);
+
+              // Tentar abrir o Google Maps, se falhar, usar mapa simples
+              try {
+                await navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => MapScreen(items: _items),
+                  ),
+                );
+              } catch (e) {
+                // Se o Google Maps não estiver configurado, usar mapa simples
+                if (mounted) {
+                  await navigator.push(
+                    MaterialPageRoute(
+                      builder: (context) => SimpleMapScreen(items: _items),
+                    ),
+                  );
+                }
+              }
             },
             tooltip: 'Ver Mapa',
           ),
