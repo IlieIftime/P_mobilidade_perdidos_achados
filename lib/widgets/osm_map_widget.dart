@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
 import '../models/item_model.dart';
 import '../utils/map_config.dart';
+import '../utils/tile_resolver.dart';
 
 class OsmMapWidget extends StatefulWidget {
   final List<ItemModel> items;
@@ -30,6 +31,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
   String? _activeTileTemplate;
   bool _probing = false;
   String? _probeError;
+  double _currentZoom = 13.0;
 
   @override
   void initState() {
@@ -41,44 +43,40 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
       _fitToPoints();
       // If we have a MapTiler key, probe candidates to pick a working tile URL
       if (MapConfig.hasMapTilerKey) {
-        _probeTileTemplates();
+        _resolveTileTemplate();
       }
     });
   }
 
-  Future<void> _probeTileTemplates() async {
+  Future<void> _resolveTileTemplate() async {
     setState(() {
       _probing = true;
       _probeError = null;
     });
-
-    final candidates = MapConfig.tileUrlCandidates;
-    for (final template in candidates) {
-      try {
-        // Replace z/x/y with a small tile (0/0/0) to test availability
-        final testUrl = template
-            .replaceAll('{z}', '0')
-            .replaceAll('{x}', '0')
-            .replaceAll('{y}', '0');
-
-        final uri = Uri.parse(testUrl);
-        final resp = await http.get(uri).timeout(const Duration(seconds: 5));
-        if (resp.statusCode == 200 && resp.headers['content-type']?.startsWith('image/') == true) {
-          setState(() {
-            _activeTileTemplate = template;
-            _probing = false;
-          });
-          return;
-        }
-      } catch (e) {
-        // ignore and try next candidate
-      }
+    final template = await TileResolver.getActiveTemplate();
+    if (template != null) {
+      setState(() {
+        _activeTileTemplate = template;
+        _probing = false;
+      });
+    } else {
+      setState(() {
+        _probing = false;
+        _probeError = 'Nenhum template de tiles respondeu com sucesso. Verifica a chave MapTiler.';
+      });
     }
+  }
 
-    setState(() {
-      _probing = false;
-      _probeError = 'Nenhum template de tiles respondeu com sucesso. Verifica a chave MapTiler.';
-    });
+  void _zoomIn() {
+    _currentZoom += 1;
+    _mapController.move(_mapController.center, _currentZoom);
+    setState(() {});
+  }
+
+  void _zoomOut() {
+    _currentZoom = (_currentZoom - 1).clamp(1.0, 20.0);
+    _mapController.move(_mapController.center, _currentZoom);
+    setState(() {});
   }
 
   void _fitToPoints() {
@@ -209,7 +207,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
                 const SizedBox(height: 12),
                 Text(_probeError ?? 'Erro ao carregar tiles.'),
                 const SizedBox(height: 8),
-                ElevatedButton(onPressed: _probeTileTemplates, child: const Text('Tentar novamente')),
+                ElevatedButton(onPressed: _resolveTileTemplate, child: const Text('Tentar novamente')),
                 const SizedBox(height: 8),
                 const Text('Se o problema persistir, verifica a tua chave MapTiler.'),
               ],
@@ -226,6 +224,11 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
         options: MapOptions(
           center: center,
           zoom: widget.initialZoom,
+          onPositionChanged: (pos, has) {
+            if (has) {
+              _currentZoom = pos.zoom ?? _currentZoom;
+            }
+          },
           onTap: (_, __) {},
         ),
         children: [
@@ -233,6 +236,26 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
             urlTemplate: _activeTileTemplate!,
             userAgentPackageName: 'com.example.app',
             tileProvider: NetworkTileProvider(),
+          ),
+          // Zoom control overlay
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Column(
+              children: [
+                FloatingActionButton.small(
+                  onPressed: _zoomIn,
+                  heroTag: 'osm_zoom_in',
+                  child: const Icon(Icons.add),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  onPressed: _zoomOut,
+                  heroTag: 'osm_zoom_out',
+                  child: const Icon(Icons.remove),
+                ),
+              ],
+            ),
           ),
           MarkerLayer(
             markers: pointsWithItems

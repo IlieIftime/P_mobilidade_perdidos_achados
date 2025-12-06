@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../utils/map_config.dart';
+import '../utils/tile_resolver.dart';
 
 class ReportFormScreen extends StatefulWidget {
   const ReportFormScreen({super.key});
@@ -467,37 +468,67 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                       : ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: SizedBox.expand(
-                            child: FlutterMap(
-                              options: MapOptions(
-                                center: ll.LatLng(
-                                  _selectedLocation!.latitude,
-                                  _selectedLocation!.longitude,
-                                ),
-                                zoom: 15.0,
-                              ),
-                              children: [
-                                TileLayer(
-                                  urlTemplate: MapConfig.tileUrlTemplate,
-                                  userAgentPackageName: 'com.example.app',
-                                ),
-                                MarkerLayer(
-                                  markers: [
-                                    Marker(
-                                      point: ll.LatLng(
-                                        _selectedLocation!.latitude,
-                                        _selectedLocation!.longitude,
+                            child: FutureBuilder<String?>(
+                              future: TileResolver.getActiveTemplate(),
+                              builder: (context, snap) {
+                                if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                                if (!snap.hasData || snap.data == null) {
+                                  return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('Erro ao carregar tiles.'), const SizedBox(height:8), ElevatedButton(onPressed: () => setState((){}), child: const Text('Tentar novamente'))]));
+                                }
+                                final tmpl = snap.data!;
+                                double _inlineZoom = 15.0;
+                                final _inlineController = MapController();
+                                return Stack(
+                                  children: [
+                                    FlutterMap(
+                                      mapController: _inlineController,
+                                      options: MapOptions(
+                                        center: ll.LatLng(
+                                          _selectedLocation!.latitude,
+                                          _selectedLocation!.longitude,
+                                        ),
+                                        zoom: _inlineZoom,
                                       ),
-                                      width: 40,
-                                      height: 40,
-                                      builder: (ctx) => const Icon(
-                                        Icons.location_on,
-                                        color: Colors.red,
-                                        size: 36,
+                                      children: [
+                                        TileLayer(
+                                          urlTemplate: tmpl,
+                                          userAgentPackageName: 'com.example.app',
+                                          tileProvider: NetworkTileProvider(),
+                                        ),
+                                        MarkerLayer(
+                                          markers: [
+                                            Marker(
+                                              point: ll.LatLng(
+                                                _selectedLocation!.latitude,
+                                                _selectedLocation!.longitude,
+                                              ),
+                                              width: 40,
+                                              height: 40,
+                                              builder: (ctx) => const Icon(
+                                                Icons.location_on,
+                                                color: Colors.red,
+                                                size: 36,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+
+                                    Positioned(
+                                      right: 8,
+                                      top: 8,
+                                      child: Column(
+                                        children: [
+                                          FloatingActionButton.small(onPressed: () { _inlineZoom += 1; _inlineController.move(_inlineController.center, _inlineZoom); }, heroTag: 'inline_zoom_in', child: const Icon(Icons.add)),
+                                          const SizedBox(height: 8),
+                                          FloatingActionButton.small(onPressed: () { _inlineZoom = (_inlineZoom - 1).clamp(1.0, 20.0); _inlineController.move(_inlineController.center, _inlineZoom); }, heroTag: 'inline_zoom_out', child: const Icon(Icons.remove)),
+                                        ],
                                       ),
                                     ),
                                   ],
-                                ),
-                              ],
+                                );
+                              },
                             ),
                           ),
                         ),

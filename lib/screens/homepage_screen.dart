@@ -4,7 +4,6 @@ import '../services/auth_service.dart';
 import '../services/item_service.dart';
 import '../utils/colors.dart';
 import 'report_form_screen.dart';
-import 'map_screen.dart';
 import 'simple_map_screen.dart';
 import 'login_screen.dart';
 
