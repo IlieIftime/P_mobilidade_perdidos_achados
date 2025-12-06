@@ -48,6 +48,9 @@ dependencies:
   flutter_map: ^4.0.0
   latlong2: ^0.8.1
 
+  # Geolocation (for 'use my location' feature)
+  geolocator: ^9.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

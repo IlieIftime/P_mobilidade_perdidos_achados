@@ -6,6 +6,11 @@ import '../services/item_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_textfield.dart';
 import '../utils/colors.dart';
+import 'map_picker_screen.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import '../utils/map_config.dart';
 
 class ReportFormScreen extends StatefulWidget {
   const ReportFormScreen({super.key});
@@ -23,6 +28,8 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   String _selectedCategory = 'Acessórios';
   XFile? _selectedImage;
   bool _isLoading = false;
+  LocationModel? _selectedLocation;
+  bool _requireLocation = true; // selection mandatory
 
   final List<String> _categories = [
     'Acessórios',
@@ -94,6 +101,10 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_requireLocation && _selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecione a localização do item.')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -106,8 +117,8 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
             ? 'https://via.placeholder.com/300x200?text=$_selectedCategory'
             : null,
         location: LocationModel(
-          latitude: 38.736946 + (DateTime.now().millisecond / 100000),
-          longitude: -9.142685 + (DateTime.now().millisecond / 100000),
+          latitude: _selectedLocation?.latitude ?? (38.736946 + (DateTime.now().millisecond / 100000)),
+          longitude: _selectedLocation?.longitude ?? (-9.142685 + (DateTime.now().millisecond / 100000)),
         ),
       );
 
@@ -165,6 +176,31 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _useMyLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permissão de localização negada')));
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permissão de localização negada permanentemente. Ative nas configurações.')));
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+      setState(() {
+        _selectedLocation = LocationModel(latitude: pos.latitude, longitude: pos.longitude);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao obter localização: $e')));
     }
   }
 
@@ -383,6 +419,95 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+              // Localização manual via mapa
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final result = await Navigator.of(context).push<LocationModel?>(
+                    MaterialPageRoute(builder: (context) => MapPickerScreen(initialLocation: _selectedLocation)),
+                  );
+                  if (result != null) setState(() => _selectedLocation = result);
+                },
+                icon: const Icon(Icons.place),
+                label: Text(_selectedLocation == null ? 'Escolher localização no mapa' : 'Localização selecionada'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              ),
+              const SizedBox(height: 12),
+              // Inline map picker header
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Localização do item (obrigatória)',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _useMyLocation,
+                    icon: const Icon(Icons.my_location),
+                    label: const Text('Usar minha localização'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Inline map picker (small preview). Tap to open full screen picker.
+              GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.of(context).push<LocationModel?>(
+                    MaterialPageRoute(builder: (context) => MapPickerScreen(initialLocation: _selectedLocation)),
+                  );
+                  if (result != null) setState(() => _selectedLocation = result);
+                },
+                child: Container(
+                  height: 200,
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Colors.grey.shade200),
+                  child: _selectedLocation == null
+                      ? Center(child: Text('Toque para escolher localização', style: TextStyle(color: AppColors.textSecondary)))
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox.expand(
+                            child: FlutterMap(
+                              options: MapOptions(
+                                center: ll.LatLng(
+                                  _selectedLocation!.latitude,
+                                  _selectedLocation!.longitude,
+                                ),
+                                zoom: 15.0,
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: MapConfig.tileUrlTemplate,
+                                  userAgentPackageName: 'com.example.app',
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: ll.LatLng(
+                                        _selectedLocation!.latitude,
+                                        _selectedLocation!.longitude,
+                                      ),
+                                      width: 40,
+                                      height: 40,
+                                      builder: (ctx) => const Icon(
+                                        Icons.location_on,
+                                        color: Colors.red,
+                                        size: 36,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+              if (_selectedLocation != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text('Lat: ${_selectedLocation!.latitude.toStringAsFixed(6)}, Long: ${_selectedLocation!.longitude.toStringAsFixed(6)}'),
+                ),
             ],
           ),
         ),
@@ -390,4 +515,3 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     );
   }
 }
-
