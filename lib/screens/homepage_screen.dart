@@ -101,26 +101,13 @@ class _HomepageScreenState extends State<HomepageScreen> {
                 return;
               }
 
+              // Abrir o mapa baseado em OpenStreetMap (funciona sem Google API key)
               if (!mounted) return;
-              final navigator = Navigator.of(context);
-
-              // Tentar abrir o Google Maps, se falhar, usar mapa simples
-              try {
-                await navigator.push(
-                  MaterialPageRoute(
-                    builder: (context) => MapScreen(items: _items),
-                  ),
-                );
-              } catch (e) {
-                // Se o Google Maps não estiver configurado, usar mapa simples
-                if (mounted) {
-                  await navigator.push(
-                    MaterialPageRoute(
-                      builder: (context) => SimpleMapScreen(items: _items),
-                    ),
-                  );
-                }
-              }
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => SimpleMapScreen(items: _items),
+                ),
+              );
             },
             tooltip: 'Ver Mapa',
           ),
@@ -438,4 +425,3 @@ class _ItemDetailDialog extends StatelessWidget {
     );
   }
 }
-

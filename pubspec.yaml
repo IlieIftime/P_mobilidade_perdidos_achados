@@ -42,7 +42,11 @@ dependencies:
   google_maps_flutter: ^2.5.3
 
   # HTTP requests (para integração futura com API real)
-  http: ^1.2.0
+  http: ^0.13.6
+
+  # OpenStreetMap via flutter_map (sem API key) - usado para protótipo
+  flutter_map: ^4.0.0
+  latlong2: ^0.8.1
 
 dev_dependencies:
   flutter_test:
