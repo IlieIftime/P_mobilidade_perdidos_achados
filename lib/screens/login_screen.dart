@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Encontre o que você perdeu',
+                    'Encontre o que perdeu',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -118,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, insira seu email';
+                        return 'Por favor, insira o seu email';
                       }
                       if (!value.contains('@')) {
                         return 'Por favor, insira um email válido';
@@ -136,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _obscurePassword,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, insira sua senha';
+                        return 'Por favor, insira a sua senha';
                       }
                       if (value.length < 6) {
                         return 'A senha deve ter no mínimo 6 caracteres';
@@ -167,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Não tem uma conta? ',
+                        'Não tem conta? ',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       TextButton(
@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           );
                         },
-                        child: const Text('Registre-se'),
+                        child: const Text('Registe-se'),
                       ),
                     ],
                   ),

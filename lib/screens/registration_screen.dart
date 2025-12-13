@@ -71,7 +71,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Registro'),
+        title: const Text('Registo'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -105,7 +105,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Preencha os dados para se cadastrar',
+                    'Preencha os dados para se registar',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -122,7 +122,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, insira seu email';
+                        return 'Por favor, insira o seu email';
                       }
                       if (!value.contains('@')) {
                         return 'Por favor, insira um email válido';
@@ -140,7 +140,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     obscureText: _obscurePassword,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, insira sua senha';
+                        return 'Por favor, insira a sua senha';
                       }
                       if (value.length < 6) {
                         return 'A senha deve ter no mínimo 6 caracteres';
@@ -166,7 +166,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     obscureText: _obscureConfirmPassword,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor, confirme sua senha';
+                        return 'Por favor, confirme a sua senha';
                       }
                       if (value != _passwordController.text) {
                         return 'As senhas não coincidem';
@@ -186,7 +186,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                   // Botão de registro
                   CustomButton(
-                    text: 'Cadastrar',
+                    text: 'Registar',
                     onPressed: _handleRegister,
                     isLoading: _isLoading,
                   ),
@@ -197,7 +197,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Já tem uma conta? ',
+                        'Já tem conta? ',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       TextButton(

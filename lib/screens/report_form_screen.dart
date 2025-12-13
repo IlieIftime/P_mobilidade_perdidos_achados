@@ -36,7 +36,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     'Acessórios',
     'Chaves',
     'Documentos',
-    'Eletrônicos',
+    'Eletrónicos',
     'Outros',
   ];
 
@@ -291,7 +291,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
               CustomTextField(
                 controller: _descriptionController,
                 label: 'Descrição do item',
-                hint: 'Descreva o item em detalhes...',
+                hint: 'Descreva o item em detalhe',
                 maxLines: 4,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -410,7 +410,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Sua localização atual será registrada automaticamente',
+                        'Sua localização atual será registada automaticamente',
                         style: TextStyle(
                           color: Colors.amber.shade900,
                           fontSize: 12,
