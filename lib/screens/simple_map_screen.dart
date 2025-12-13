@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../models/item_model.dart';
 import '../utils/colors.dart';
@@ -15,6 +16,7 @@ class SimpleMapScreen extends StatefulWidget {
 
 class _SimpleMapScreenState extends State<SimpleMapScreen> {
   dynamic _mapController;
+  final TextEditingController _searchController = TextEditingController();
 
   void _onMapCreated(dynamic controller) {
     _mapController = controller;
@@ -27,6 +29,28 @@ class _SimpleMapScreenState extends State<SimpleMapScreen> {
       // use a sensible zoom when centering
       _mapController.move(p, 15.0);
     } catch (_) {}
+  }
+
+  void _searchLocation() async {
+    if (_searchController.text.isEmpty) {
+      return;
+    }
+    try {
+      List<Location> locations = await locationFromAddress(_searchController.text);
+      if (locations.isNotEmpty) {
+        final location = locations.first;
+        final p = ll.LatLng(location.latitude, location.longitude);
+        _mapController.move(p, 15.0);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Localização não encontrada.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao procurar localização: $e')),
+      );
+    }
   }
 
   void _showItemDetails(ItemModel item) {
@@ -71,169 +95,192 @@ class _SimpleMapScreenState extends State<SimpleMapScreen> {
   Widget build(BuildContext context) {
     final items = widget.items;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Localizações'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.map_outlined,
-                    size: 64,
-                    color: AppColors.textSecondary,
+        appBar: AppBar(
+          title: const Text('Localizações'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Procurar localização',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: _searchLocation,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nenhum item para exibir',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+                ),
+                onSubmitted: (_) => _searchLocation(),
               ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Map preview - uses OSM implementation behind a stable MapWidget interface
-                  OsmMapWidget(items: items, onMapCreated: _onMapCreated, onMarkerTap: _showItemDetails),
-                  const SizedBox(height: 16),
-                  ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return GestureDetector(
-                        onTap: () => _centerOnItem(item),
-                        child: Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+            ),
+            Expanded(
+              child: items.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.map_outlined,
+                            size: 64,
+                            color: AppColors.textSecondary,
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        item.category,
-                                        style: TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: item.status == 'aprovado'
-                                            ? AppColors.success.withValues(alpha: 0.1)
-                                            : AppColors.warning.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        item.status.toUpperCase(),
-                                        style: TextStyle(
-                                          color: item.status == 'aprovado'
-                                              ? AppColors.success
-                                              : AppColors.warning,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  item.description,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhum item para exibir',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          // Map preview - uses OSM implementation behind a stable MapWidget interface
+                          SizedBox(
+                            height: 300,
+                            child: OsmMapWidget(
+                                items: items, onMapCreated: _onMapCreated, onMarkerTap: _showItemDetails),
+                          ),
+                          const SizedBox(height: 16),
+                          ListView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            shrinkWrap: true,
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return GestureDetector(
+                                onTap: () => _centerOnItem(item),
+                                child: Card(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.location_on,
-                                        size: 20,
-                                        color: AppColors.primary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
                                           children: [
-                                            Text(
-                                              'Localização:',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.textSecondary,
-                                                fontWeight: FontWeight.bold,
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                item.category,
+                                                style: TextStyle(
+                                                  color: AppColors.primary,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Lat: ${item.location.latitude.toStringAsFixed(6)}',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.black87,
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
                                               ),
-                                            ),
-                                            Text(
-                                              'Long: ${item.location.longitude.toStringAsFixed(6)}',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.black87,
+                                              decoration: BoxDecoration(
+                                                color: item.status == 'aprovado'
+                                                    ? AppColors.success.withValues(alpha: 0.1)
+                                                    : AppColors.warning.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                item.status.toUpperCase(),
+                                                style: TextStyle(
+                                                  color: item.status == 'aprovado'
+                                                      ? AppColors.success
+                                                      : AppColors.warning,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          item.description,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade100,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.location_on,
+                                                size: 20,
+                                                color: AppColors.primary,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Localização:',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: AppColors.textSecondary,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      'Lat: ${item.location.latitude.toStringAsFixed(6)}',
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.black87,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      'Long: ${item.location.longitude.toStringAsFixed(6)}',
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.black87,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-    );
+                        ],
+                      ),
+                    ),
+            )
+          ],
+        ));
   }
 }

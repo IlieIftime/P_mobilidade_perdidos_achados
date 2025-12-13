@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/item_model.dart';
 import '../services/item_service.dart';
@@ -23,6 +24,7 @@ class ReportFormScreen extends StatefulWidget {
 class _ReportFormScreenState extends State<ReportFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  final _searchController = TextEditingController();
   final _itemService = ItemService();
   final _imagePicker = ImagePicker();
 
@@ -43,6 +45,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -110,24 +113,19 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Simular localização (em produção, usaria GPS)
       final item = ItemModel(
         description: _descriptionController.text.trim(),
         category: _selectedCategory,
         imageUrl: _selectedImage != null
             ? 'https://via.placeholder.com/300x200?text=$_selectedCategory'
             : null,
-        location: LocationModel(
-          latitude: _selectedLocation?.latitude ?? (38.736946 + (DateTime.now().millisecond / 100000)),
-          longitude: _selectedLocation?.longitude ?? (-9.142685 + (DateTime.now().millisecond / 100000)),
-        ),
+        location: _selectedLocation!,
       );
 
       await _itemService.reportItem(item);
 
       if (!mounted) return;
 
-      // Mostrar dialog informativo em vez de apenas snackbar
       await showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -197,11 +195,47 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       }
 
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
-      setState(() {
-        _selectedLocation = LocationModel(latitude: pos.latitude, longitude: pos.longitude);
-      });
+      _updateLocation(LocationModel(latitude: pos.latitude, longitude: pos.longitude), updateText: true);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao obter localização: $e')));
+    }
+  }
+
+  void _searchLocation() async {
+    if (_searchController.text.isEmpty) {
+      return;
+    }
+    try {
+      List<Location> locations = await locationFromAddress(_searchController.text);
+      if (locations.isNotEmpty) {
+        final location = locations.first;
+        _updateLocation(LocationModel(latitude: location.latitude, longitude: location.longitude));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Localização não encontrada.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao procurar localização: $e')),
+      );
+    }
+  }
+
+  void _updateLocation(LocationModel location, {bool updateText = false}) async {
+    setState(() {
+      _selectedLocation = location;
+    });
+    if (updateText) {
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(location.latitude, location.longitude);
+        if (placemarks.isNotEmpty) {
+          final placemark = placemarks.first;
+          _searchController.text = '${placemark.street}, ${placemark.locality}';
+        }
+      } catch (e) {
+        // ignore
+      }
     }
   }
 
@@ -220,7 +254,6 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Informação
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -386,7 +419,29 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Location Search
+              TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Procurar localização',
+                  hintText: 'Ex: Rua, Cidade',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onSubmitted: (_) => _searchLocation(),
+              ),
+              const SizedBox(height: 12),
+
+              ElevatedButton.icon(
+                onPressed: _searchLocation,
+                icon: const Icon(Icons.search),
+                label: const Text('Selecionar localização no mapa'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              ),
+              const SizedBox(height: 24),
 
               // Botão de submissão
               CustomButton(
@@ -396,44 +451,6 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Nota sobre localização
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.location_on, color: Colors.amber.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Sua localização atual será registada automaticamente',
-                        style: TextStyle(
-                          color: Colors.amber.shade900,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Localização manual via mapa
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final result = await Navigator.of(context).push<LocationModel?>(
-                    MaterialPageRoute(builder: (context) => MapPickerScreen(initialLocation: _selectedLocation)),
-                  );
-                  if (result != null) setState(() => _selectedLocation = result);
-                },
-                icon: const Icon(Icons.place),
-                label: Text(_selectedLocation == null ? 'Escolher localização no mapa' : 'Localização selecionada'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              ),
-              const SizedBox(height: 12),
               // Inline map picker header
               Row(
                 children: [
@@ -453,86 +470,99 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
               ),
               const SizedBox(height: 8),
               // Inline map picker (small preview). Tap to open full screen picker.
-              GestureDetector(
-                onTap: () async {
-                  final result = await Navigator.of(context).push<LocationModel?>(
-                    MaterialPageRoute(builder: (context) => MapPickerScreen(initialLocation: _selectedLocation)),
-                  );
-                  if (result != null) setState(() => _selectedLocation = result);
-                },
-                child: Container(
-                  height: 200,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Colors.grey.shade200),
-                  child: _selectedLocation == null
-                      ? Center(child: Text('Toque para escolher localização', style: TextStyle(color: AppColors.textSecondary)))
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: SizedBox.expand(
-                            child: FutureBuilder<String?>(
-                              future: TileResolver.getActiveTemplate(),
-                              builder: (context, snap) {
-                                if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                                if (!snap.hasData || snap.data == null) {
-                                  return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('Erro ao carregar tiles.'), const SizedBox(height:8), ElevatedButton(onPressed: () => setState((){}), child: const Text('Tentar novamente'))]));
-                                }
-                                final tmpl = snap.data!;
-                                double _inlineZoom = 15.0;
-                                final _inlineController = MapController();
-                                return Stack(
-                                  children: [
-                                    FlutterMap(
-                                      mapController: _inlineController,
-                                      options: MapOptions(
-                                        center: ll.LatLng(
-                                          _selectedLocation!.latitude,
-                                          _selectedLocation!.longitude,
-                                        ),
-                                        zoom: _inlineZoom,
+              Container(
+                height: 200,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Colors.grey.shade200),
+                child: _selectedLocation == null
+                    ? GestureDetector(
+                        onTap: () async {
+                          final result = await Navigator.of(context).push<LocationModel?>(
+                            MaterialPageRoute(builder: (context) => MapPickerScreen(initialLocation: _selectedLocation)),
+                          );
+                          if (result != null) _updateLocation(result, updateText: true);
+                        },
+                        child: Center(child: Text('Toque para escolher localização', style: TextStyle(color: AppColors.textSecondary))),
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox.expand(
+                          child: FutureBuilder<String?>(
+                            future: TileResolver.getActiveTemplate(),
+                            builder: (context, snap) {
+                              if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                              if (!snap.hasData || snap.data == null) {
+                                return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('Erro ao carregar tiles.'), const SizedBox(height:8), ElevatedButton(onPressed: () => setState((){}), child: const Text('Tentar novamente'))]));
+                              }
+                              final tmpl = snap.data!;
+                              double _inlineZoom = 15.0;
+                              final _inlineController = MapController();
+                              return Stack(
+                                children: [
+                                  FlutterMap(
+                                    mapController: _inlineController,
+                                    options: MapOptions(
+                                      center: ll.LatLng(
+                                        _selectedLocation!.latitude,
+                                        _selectedLocation!.longitude,
                                       ),
-                                      children: [
-                                        TileLayer(
-                                          urlTemplate: tmpl,
-                                          userAgentPackageName: 'com.example.app',
-                                          tileProvider: NetworkTileProvider(),
-                                        ),
-                                        MarkerLayer(
-                                          markers: [
-                                            Marker(
-                                              point: ll.LatLng(
-                                                _selectedLocation!.latitude,
-                                                _selectedLocation!.longitude,
-                                              ),
-                                              width: 40,
-                                              height: 40,
-                                              builder: (ctx) => const Icon(
-                                                Icons.location_on,
-                                                color: Colors.red,
-                                                size: 36,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                      zoom: _inlineZoom,
+                                      onTap: (tapPosition, point) => _updateLocation(LocationModel(latitude: point.latitude, longitude: point.longitude)),
                                     ),
-
-                                    Positioned(
-                                      right: 8,
-                                      top: 8,
-                                      child: Column(
-                                        children: [
-                                          FloatingActionButton.small(onPressed: () { _inlineZoom += 1; _inlineController.move(_inlineController.center, _inlineZoom); }, heroTag: 'inline_zoom_in', child: const Icon(Icons.add)),
-                                          const SizedBox(height: 8),
-                                          FloatingActionButton.small(onPressed: () { _inlineZoom = (_inlineZoom - 1).clamp(1.0, 20.0); _inlineController.move(_inlineController.center, _inlineZoom); }, heroTag: 'inline_zoom_out', child: const Icon(Icons.remove)),
+                                    children: [
+                                      TileLayer(
+                                        urlTemplate: tmpl,
+                                        userAgentPackageName: 'com.example.app',
+                                        tileProvider: NetworkTileProvider(),
+                                      ),
+                                      MarkerLayer(
+                                        markers: [
+                                          Marker(
+                                            point: ll.LatLng(
+                                              _selectedLocation!.latitude,
+                                              _selectedLocation!.longitude,
+                                            ),
+                                            width: 40,
+                                            height: 40,
+                                            builder: (ctx) => const Icon(
+                                              Icons.location_on,
+                                              color: Colors.red,
+                                              size: 36,
+                                            ),
+                                          ),
                                         ],
                                       ),
+                                    ],
+                                  ),
+                                  Positioned(
+                                    right: 8,
+                                    top: 8,
+                                    child: Column(
+                                      children: [
+                                        FloatingActionButton.small(onPressed: () { _inlineZoom += 1; _inlineController.move(_inlineController.center, _inlineZoom); }, heroTag: 'inline_zoom_in', child: const Icon(Icons.add)),
+                                        const SizedBox(height: 8),
+                                        FloatingActionButton.small(onPressed: () { _inlineZoom = (_inlineZoom - 1).clamp(1.0, 20.0); _inlineController.move(_inlineController.center, _inlineZoom); }, heroTag: 'inline_zoom_out', child: const Icon(Icons.remove)),
+                                      ],
                                     ),
-                                  ],
-                                );
-                              },
-                            ),
+                                  ),
+                                  Positioned(
+                                    bottom: 8,
+                                    left: 8,
+                                    child: ElevatedButton(
+                                      onPressed: () async {
+                                        final result = await Navigator.of(context).push<LocationModel?>(
+                                          MaterialPageRoute(builder: (context) => MapPickerScreen(initialLocation: _selectedLocation)),
+                                        );
+                                        if (result != null) _updateLocation(result, updateText: true);
+                                      },
+                                      child: Text('Ecrã inteiro'),
+                                    ),
+                                  )
+                                ],
+                              );
+                            },
                           ),
                         ),
-                ),
+                      ),
               ),
               if (_selectedLocation != null)
                 Padding(

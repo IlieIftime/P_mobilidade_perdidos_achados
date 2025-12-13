@@ -50,6 +50,7 @@ dependencies:
 
   # Geolocation (for 'use my location' feature)
   geolocator: ^9.0.2
+  geocoding: ^2.1.0
 
   firebase_core: ^3.3.0
   firebase_auth: ^5.1.1

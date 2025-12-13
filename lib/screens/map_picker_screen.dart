@@ -62,8 +62,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     setState(() {});
   }
 
-  void _onTap(ll.LatLng p) {
-    setState(() => _picked = p);
+  void _onTap(tapPos, latlng) {
+    setState(() => _picked = latlng);
   }
 
   void _confirm() {
@@ -121,7 +121,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                       options: MapOptions(
                         center: center,
                         zoom: _zoom,
-                        onTap: (tapPos, latlng) => _onTap(latlng),
+                        onTap: _onTap,
                       ),
                       children: [
                         TileLayer(
