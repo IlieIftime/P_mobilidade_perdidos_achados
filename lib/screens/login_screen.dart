@@ -4,7 +4,6 @@ import '../widgets/custom_button.dart';
 import '../widgets/custom_textfield.dart';
 import '../utils/colors.dart';
 import 'registration_screen.dart';
-import 'homepage_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -43,14 +42,19 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (user != null) {
-        // Navegar para a tela apropriada baseado no perfil
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => user.role == 'admin'
-                ? const AdminDashboardScreen()
-                : const HomepageScreen(),
-          ),
-        );
+        if (user.role == 'admin') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const AdminDashboardScreen(),
+            ),
+          );
+        } else {
+          // ✅ USER normal: entra como não-guest
+          Navigator.of(context).pushReplacementNamed(
+            '/home',
+            arguments: false,
+          );
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -67,6 +71,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _continueAsGuest() {
+    Navigator.of(context).pushReplacementNamed(
+      '/home',
+      arguments: true, // ✅ isGuest = true
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,7 +92,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo ou ícone
                   Icon(
                     Icons.search_rounded,
                     size: 80,
@@ -89,7 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Título
                   Text(
                     'SOS Perdidos e Achados',
                     textAlign: TextAlign.center,
@@ -110,7 +119,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 48),
 
-                  // Campo de email
                   CustomTextField(
                     controller: _emailController,
                     label: 'Email',
@@ -128,7 +136,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Campo de senha
                   CustomTextField(
                     controller: _passwordController,
                     label: 'Senha',
@@ -145,7 +152,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
@@ -154,15 +163,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Botão de login
                   CustomButton(
                     text: 'Entrar',
                     onPressed: _handleLogin,
                     isLoading: _isLoading,
                   ),
+                  const SizedBox(height: 12),
+
+                  // ✅ Visitante
+                  TextButton(
+                    onPressed: _continueAsGuest,
+                    child: const Text('Continuar como visitante'),
+                  ),
+
                   const SizedBox(height: 16),
 
-                  // Link para registro
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -184,7 +199,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Credenciais de teste
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -229,4 +243,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

@@ -50,6 +50,14 @@ class ItemService {
     return List.from(_items);
   }
 
+  // Exemplo, adapta ao que já tens dentro do ItemService
+  Future<List<ItemModel>> getAllItems() async {
+    // Se já tiveres um método que devolve a lista, por exemplo getItems(),
+    // podes simplesmente delegar:
+    return getItems();
+  }
+
+
   Future<List<ItemModel>> getApprovedItems() async {
     return getItems(status: 'aprovado');
   }
