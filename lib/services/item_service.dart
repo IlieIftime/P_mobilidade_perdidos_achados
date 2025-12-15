@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../models/item_model.dart';
 import 'auth_service.dart';
 
@@ -8,6 +9,7 @@ class ItemService {
   ItemService._internal();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final AuthService _authService = AuthService();
 
   final String _collection = 'produtos_desaparecidos';
@@ -22,8 +24,10 @@ class ItemService {
       category: data['category'] ?? '',
       status: data['status'] ?? 'pendente',
       imageUrl: data['imageUrl'],
+      assetImage: data['assetImage'],
       phone: data['phone'] ?? '',
-      location: data['location'] ?? '',
+      createdBy: data['createdBy'],
+      location: data['location'] != null ? LocationModel.fromJson(data['location']) : null,
     );
   }
 
@@ -68,11 +72,13 @@ class ItemService {
       'category': item.category,
       'status': 'pendente',
       'imageUrl': item.imageUrl,
+      'assetImage': item.assetImage,
       'phone': item.phone,
-      'location': {
-        'latitude': item.location.latitude,
-        'longitude': item.location.longitude,
-      },
+      'location': item.location != null ? {
+        'latitude': item.location!.latitude,
+        'longitude': item.location!.longitude,
+      } : null,
+      'createdBy': user?.id, // Corrected from uid to id
       'userId': user?.id,
       'emailUser': user?.email,
       'createdAt': FieldValue.serverTimestamp(),
@@ -91,11 +97,14 @@ class ItemService {
   }
 
   /// Apagar item (admin)
-  Future<void> deleteItem(String docId) async {
-    await _firestore
-        .collection(_collection)
-        .doc(docId)
-        .delete();
+  Future<void> deleteItem(String docId, String? imageUrl) async {
+    await _firestore.collection(_collection).doc(docId).delete();
+    if (imageUrl != null && imageUrl.startsWith('https')) {
+      try {
+        await _storage.refFromURL(imageUrl).delete();
+      } catch (e) {
+        print('Error deleting storage file: $e');
+      }
+    }
   }
 }
-

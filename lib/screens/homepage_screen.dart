@@ -3,12 +3,14 @@ import '../models/item_model.dart';
 import '../services/auth_service.dart';
 import '../services/item_service.dart';
 import '../utils/colors.dart';
+import '../widgets/asset_image_helper.dart';
 import 'report_form_screen.dart';
 import 'simple_map_screen.dart';
 import 'login_screen.dart';
 
 class HomepageScreen extends StatefulWidget {
-  const HomepageScreen({super.key});
+  final bool isPreview;
+  const HomepageScreen({super.key, this.isPreview = false});
 
   @override
   State<HomepageScreen> createState() => _HomepageScreenState();
@@ -89,37 +91,37 @@ class _HomepageScreenState extends State<HomepageScreen> {
           IconButton(
             icon: const Icon(Icons.map),
             onPressed: () async {
-              if (_items.isEmpty) {
+              final itemsWithLocation = _items.where((item) => item.location != null).toList();
+              if (itemsWithLocation.isEmpty) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Nenhum item para exibir no mapa'),
+                    content: Text('Nenhum item com localização para exibir no mapa'),
                     duration: Duration(seconds: 2),
                   ),
                 );
                 return;
               }
 
-              // Abrir o mapa baseado em OpenStreetMap (funciona sem Google API key)
               if (!mounted) return;
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => SimpleMapScreen(items: _items),
+                  builder: (context) => SimpleMapScreen(items: itemsWithLocation),
                 ),
               );
             },
             tooltip: 'Ver Mapa',
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Sair',
-          ),
+          if (!widget.isPreview)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _logout,
+              tooltip: 'Sair',
+            ),
         ],
       ),
       body: Column(
         children: [
-          // Filtro de categorias
           Container(
             height: 60,
             color: Colors.white,
@@ -147,7 +149,6 @@ class _HomepageScreenState extends State<HomepageScreen> {
             ),
           ),
 
-          // Lista de itens
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -179,39 +180,52 @@ class _HomepageScreenState extends State<HomepageScreen> {
                           itemCount: _filteredItems.length,
                           itemBuilder: (context, index) {
                             final item = _filteredItems[index];
-                            return _ItemCard(item: item);
+                            return _ItemCard(item: item, isPreview: widget.isPreview);
                           },
                         ),
                       ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const ReportFormScreen(),
+      floatingActionButton: widget.isPreview
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const LoginScreen(isSigningUp: true)),
+                );
+              },
+              backgroundColor: AppColors.accent,
+              icon: const Icon(Icons.person_add),
+              label: const Text('Criar Conta para Reportar'),
+            )
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                final result = await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ReportFormScreen(),
+                  ),
+                );
+                if (result == true) {
+                  _loadItems();
+                }
+              },
+              backgroundColor: AppColors.accent,
+              icon: const Icon(Icons.add),
+              label: const Text('Reportar'),
             ),
-          );
-          if (result == true) {
-            _loadItems();
-          }
-        },
-        backgroundColor: AppColors.accent,
-        icon: const Icon(Icons.add),
-        label: const Text('Reportar'),
-      ),
     );
   }
 }
 
 class _ItemCard extends StatelessWidget {
   final ItemModel item;
+  final bool isPreview;
 
-  const _ItemCard({required this.item});
+  const _ItemCard({required this.item, this.isPreview = false});
 
   @override
   Widget build(BuildContext context) {
+    final assetPath = item.assetImage;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       elevation: 2,
@@ -222,82 +236,70 @@ class _ItemCard extends StatelessWidget {
         onTap: () {
           showDialog(
             context: context,
-            builder: (context) => _ItemDetailDialog(item: item),
+            builder: (context) => _ItemDetailDialog(item: item, isPreview: isPreview),
           );
         },
         borderRadius: BorderRadius.circular(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            // Imagem
-            if (item.imageUrl != null)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  item.imageUrl!,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 200,
-                      color: Colors.grey.shade300,
-                      child: const Icon(Icons.image_not_supported, size: 64),
-                    );
-                  },
-                ),
-              ),
-
-            // Informações
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          item.category,
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: buildAssetImageIfExists(assetPath, width: 72, height: 72, fit: BoxFit.cover),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            item.category,
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Ver no mapa',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.description,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                        if (item.location != null) ...[
+                          const Spacer(),
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Ver no mapa',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      item.description,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -309,11 +311,15 @@ class _ItemCard extends StatelessWidget {
 
 class _ItemDetailDialog extends StatelessWidget {
   final ItemModel item;
+  final bool isPreview;
 
-  const _ItemDetailDialog({required this.item});
+  _ItemDetailDialog({required this.item, this.isPreview = false});
 
   @override
   Widget build(BuildContext context) {
+    final assetPath = item.assetImage;
+    final location = item.location;
+
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -323,25 +329,7 @@ class _ItemDetailDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagem
-            if (item.imageUrl != null)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  item.imageUrl!,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 200,
-                      color: Colors.grey.shade300,
-                      child: const Icon(Icons.image_not_supported, size: 64),
-                    );
-                  },
-                ),
-              ),
-
-            // Conteúdo
+            buildAssetImageIfExists(assetPath, width: double.infinity, height: 200, fit: BoxFit.cover),
             Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -350,7 +338,7 @@ class _ItemDetailDialog extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
+                      color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -365,67 +353,50 @@ class _ItemDetailDialog extends StatelessWidget {
                   const SizedBox(height: 16),
                   const Text(
                     'Descrição:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    item.description,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Localização:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
+                  Text(item.description, style: const TextStyle(fontSize: 16)),
+                  if (location != null) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Localização:',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Lat: ${item.location.latitude.toStringAsFixed(4)}, '
-                          'Long: ${item.location.longitude.toStringAsFixed(4)}',
-                          style: const TextStyle(fontSize: 14),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Lat: ${location.latitude.toStringAsFixed(4)}, Long: ${location.longitude.toStringAsFixed(4)}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Contacto:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.phone, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          item.phone!,
-                          style: const TextStyle(fontSize: 14),
+                  ],
+                  if (!isPreview) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Contacto:',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(item.phone ?? 'Não fornecido', style: const TextStyle(fontSize: 14)),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-
-            // Botão fechar
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               child: SizedBox(

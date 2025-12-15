@@ -25,40 +25,47 @@ class _MapScreenState extends State<MapScreen> {
 
   void _createMarkers() {
     for (var item in widget.items) {
-      _markers.add(
-        Marker(
-          markerId: MarkerId(item.id.toString()),
-          position: LatLng(item.location.latitude, item.location.longitude),
-          infoWindow: InfoWindow(
-            title: item.category,
-            snippet: item.description,
+      // **FIX: Only create a marker if the location is not null.**
+      if (item.location != null) {
+        _markers.add(
+          Marker(
+            // **FIX: Provide a fallback for the marker ID if item.id is null.**
+            markerId: MarkerId(item.id ?? item.description),
+            position: LatLng(item.location!.latitude, item.location!.longitude),
+            infoWindow: InfoWindow(
+              title: item.category,
+              snippet: item.description,
+              onTap: () {
+                setState(() => _selectedItem = item);
+              },
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              item.status == 'aprovado'
+                  ? BitmapDescriptor.hueGreen
+                  : BitmapDescriptor.hueRed,
+            ),
             onTap: () {
               setState(() => _selectedItem = item);
             },
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            item.status == 'aprovado'
-                ? BitmapDescriptor.hueGreen
-                : BitmapDescriptor.hueRed,
-          ),
-          onTap: () {
-            setState(() => _selectedItem = item);
-          },
-        ),
-      );
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Localização padrão (Lisboa)
+    // **FIX: Create a new list containing only items with a valid location.**
+    final itemsWithLocation = widget.items.where((item) => item.location != null).toList();
+
+    // **FIX: Safely determine the initial camera position.**
     final CameraPosition initialPosition = CameraPosition(
-      target: widget.items.isNotEmpty
+      target: itemsWithLocation.isNotEmpty
           ? LatLng(
-              widget.items.first.location.latitude,
-              widget.items.first.location.longitude,
-            )
-          : const LatLng(38.736946, -9.142685),
+        itemsWithLocation.first.location!.latitude,
+        itemsWithLocation.first.location!.longitude,
+      )
+          : const LatLng(38.736946, -9.142685), // Fallback to Lisbon
       zoom: 13,
     );
 
@@ -68,38 +75,31 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      body: widget.items.isEmpty
+      // **FIX: Use the filtered list to decide what to display.**
+      body: itemsWithLocation.isEmpty
           ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.map_outlined,
-                    size: 64,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nenhum item para exibir no mapa',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Reporte um objeto para vê-lo aqui',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.map_outlined,
+              size: 64,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nenhum item com localização para exibir no mapa',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                color: AppColors.textSecondary,
               ),
-            )
+            ),
+          ],
+        ),
+      )
           : Stack(
         children: [
-          // Mapa
           GoogleMap(
             initialCameraPosition: initialPosition,
             markers: _markers,
@@ -112,8 +112,8 @@ class _MapScreenState extends State<MapScreen> {
             mapToolbarEnabled: false,
           ),
 
-          // Card de informações do item selecionado
-          if (_selectedItem != null)
+          // **FIX: Add a null check for the selected item's location.**
+          if (_selectedItem != null && _selectedItem!.location != null)
             Positioned(
               bottom: 16,
               left: 16,
@@ -137,7 +137,7 @@ class _MapScreenState extends State<MapScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
+                              color: AppColors.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -181,8 +181,8 @@ class _MapScreenState extends State<MapScreen> {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              'Lat: ${_selectedItem!.location.latitude.toStringAsFixed(4)}, '
-                              'Long: ${_selectedItem!.location.longitude.toStringAsFixed(4)}',
+                              'Lat: ${_selectedItem!.location!.latitude.toStringAsFixed(4)}, '
+                                  'Long: ${_selectedItem!.location!.longitude.toStringAsFixed(4)}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey,
@@ -197,7 +197,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // Legenda
           Positioned(
             top: 16,
             right: 16,
@@ -267,4 +266,3 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 }
-

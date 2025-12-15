@@ -3,6 +3,7 @@ import '../../models/item_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/item_service.dart';
 import '../../utils/colors.dart';
+import '../../widgets/asset_image_helper.dart';
 import '../login_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -18,18 +19,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
   List<ItemModel> _pendingItems = [];
   List<ItemModel> _allItems = [];
   bool _isLoading = true;
-  int _selectedTab = 0;
-  late final TabController _tabController;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() => _selectedTab = _tabController.index);
-      }
-    });
     _loadItems();
   }
 
@@ -40,53 +35,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
   }
 
   Future<void> _loadItems() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final pending = await _itemService.getPendingItems();
       final all = await _itemService.getItems();
-      setState(() {
-        _pendingItems = pending;
-        _allItems = all;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _pendingItems = pending;
+          _allItems = all;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao carregar itens: $e'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text('Erro ao carregar itens: $e'), backgroundColor: AppColors.error),
         );
       }
     }
   }
 
   Future<void> _validateItem(ItemModel item) async {
+    if (item.id == null) return;
     try {
       await _itemService.validateItem(item.id!);
+      await _loadItems(); // Refresh lists
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Item validado com sucesso!'),
-            backgroundColor: AppColors.success,
-          ),
+          const SnackBar(content: Text('Item validado com sucesso!'), backgroundColor: AppColors.success),
         );
-        _loadItems();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao validar item: $e'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text('Erro ao validar item: $e'), backgroundColor: AppColors.error),
         );
       }
     }
   }
 
   Future<void> _deleteItem(ItemModel item) async {
+    if (item.id == null) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -94,7 +86,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
         content: const Text('Deseja realmente remover este item?'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), style: TextButton.styleFrom(foregroundColor: AppColors.error), child: const Text('Remover')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Remover'), style: TextButton.styleFrom(foregroundColor: AppColors.error)),
         ],
       ),
     );
@@ -102,23 +94,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     if (confirmed != true) return;
 
     try {
-      await _itemService.deleteItem(item.id!);
+      await _itemService.deleteItem(item.id!, item.imageUrl);
+      await _loadItems(); // Refresh lists
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Item removido com sucesso!'),
-            backgroundColor: AppColors.success,
-          ),
+          const SnackBar(content: Text('Item removido com sucesso!'), backgroundColor: AppColors.success),
         );
-        _loadItems();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao remover item: $e'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text('Erro ao remover item: $e'), backgroundColor: AppColors.error),
         );
       }
     }
@@ -126,112 +112,84 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
 
   Future<void> _logout() async {
     await _authService.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const LoginScreen()));
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  Widget _buildItemList(List<ItemModel> items, bool isAdmin, String? currentUserId) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text('Nenhum item para exibir.', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadItems,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final canDelete = isAdmin || (item.createdBy != null && item.createdBy == currentUserId);
+          return _AdminItemCard(
+            item: item,
+            onValidate: item.status == 'pendente' ? () => _validateItem(item) : null,
+            onDelete: canDelete ? () => _deleteItem(item) : null,
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = _authService.currentUser;
+    final isAdmin = currentUser?.role == 'admin';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Painel de Administração'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadItems, tooltip: 'Recarregar'),
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout, tooltip: 'Sair'),
         ],
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            child: TabBar(
-              controller: _tabController,
-              tabs: [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Pendentes'),
-                      if (_pendingItems.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(color: AppColors.warning, borderRadius: BorderRadius.circular(10)),
-                          child: Text('${_pendingItems.length}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                    ],
-                  ),
-                ),
-                const Tab(text: 'Todos os Itens'),
-              ],
-              labelColor: AppColors.primary,
-              unselectedLabelColor: AppColors.textSecondary,
-              indicatorColor: AppColors.primary,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Pendentes'),
+                  if (_pendingItems.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.warning, borderRadius: BorderRadius.circular(10)),
+                      child: Text('${_pendingItems.length}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
             ),
-          ),
-
-          Expanded(
-            child: _isLoading ? const Center(child: CircularProgressIndicator()) : (_selectedTab == 0 ? _buildPendingList() : _buildAllItemsList()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPendingList() {
-    if (_pendingItems.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
-            const SizedBox(height: 16),
-            Text('Nenhum item pendente!', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
-            const SizedBox(height: 8),
-            Text('Todos os itens foram revisados', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+            const Tab(text: 'Todos os Itens'),
           ],
         ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadItems,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: _pendingItems.length,
-        itemBuilder: (context, index) {
-          final item = _pendingItems[index];
-          return _AdminItemCard(item: item, onValidate: () => _validateItem(item), onDelete: () => _deleteItem(item), showValidateButton: true);
-        },
       ),
-    );
-  }
-
-  Widget _buildAllItemsList() {
-    if (_allItems.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 64, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
-            Text('Nenhum item cadastrado', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadItems,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: _allItems.length,
-        itemBuilder: (context, index) {
-          final item = _allItems[index];
-          return _AdminItemCard(item: item, onValidate: item.status == 'pendente' ? () => _validateItem(item) : null, onDelete: () => _deleteItem(item), showValidateButton: item.status == 'pendente');
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildItemList(_pendingItems, isAdmin, currentUser?.id),
+                _buildItemList(_allItems, isAdmin, currentUser?.id),
+              ],
+            ),
     );
   }
 }
@@ -239,13 +197,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
 class _AdminItemCard extends StatelessWidget {
   final ItemModel item;
   final VoidCallback? onValidate;
-  final VoidCallback onDelete;
-  final bool showValidateButton;
+  final VoidCallback? onDelete;
 
-  const _AdminItemCard({required this.item, this.onValidate, required this.onDelete, required this.showValidateButton});
+  const _AdminItemCard({required this.item, this.onValidate, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
+    final assetPath = item.assetImage;
+    final locationText = item.location != null
+        ? 'Lat: ${item.location!.latitude.toStringAsFixed(4)}, Long: ${item.location!.longitude.toStringAsFixed(4)}'
+        : 'Localização não disponível';
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       elevation: 2,
@@ -253,7 +215,9 @@ class _AdminItemCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (item.imageUrl != null)
+          if (assetPath?.isNotEmpty == true)
+            buildAssetImageIfExists(assetPath, width: double.infinity, height: 200, fit: BoxFit.cover)
+          else if (item.imageUrl?.isNotEmpty == true)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: Image.network(
@@ -261,12 +225,10 @@ class _AdminItemCard extends StatelessWidget {
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(height: 200, color: Colors.grey.shade300, child: const Icon(Icons.image_not_supported, size: 64));
-                },
+                errorBuilder: (context, error, stackTrace) =>
+                    Container(height: 200, color: Colors.grey.shade300, child: const Icon(Icons.image_not_supported, size: 64)),
               ),
             ),
-
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -276,14 +238,17 @@ class _AdminItemCard extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                      decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                       child: Text(item.category, style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: item.status == 'aprovado' ? AppColors.success.withValues(alpha: 0.1) : AppColors.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                      child: Text(item.status.toUpperCase(), style: TextStyle(color: item.status == 'aprovado' ? AppColors.success : AppColors.warning, fontSize: 10, fontWeight: FontWeight.bold)),
+                      decoration: BoxDecoration(
+                          color: item.status == 'aprovado' ? AppColors.success.withOpacity(0.1) : AppColors.warning.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4)),
+                      child: Text(item.status.toUpperCase(),
+                          style: TextStyle(color: item.status == 'aprovado' ? AppColors.success : AppColors.warning, fontSize: 10, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -294,18 +259,29 @@ class _AdminItemCard extends StatelessWidget {
                   children: [
                     const Icon(Icons.location_on, size: 16, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Expanded(child: Text('Lat: ${item.location.latitude.toStringAsFixed(4)}, Long: ${item.location.longitude.toStringAsFixed(4)}', style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                    Expanded(child: Text(locationText, style: const TextStyle(fontSize: 12, color: Colors.grey))),
                   ],
                 ),
                 const SizedBox(height: 16),
-
                 Row(
                   children: [
-                    if (showValidateButton) ...[
-                      Expanded(child: ElevatedButton.icon(onPressed: onValidate, icon: const Icon(Icons.check, size: 18), label: const Text('Validar'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white))),
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(child: ElevatedButton.icon(onPressed: onDelete, icon: const Icon(Icons.delete, size: 18), label: const Text('Remover'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white))),
+                    if (onValidate != null)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                            onPressed: onValidate,
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text('Validar'),
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white)),
+                      ),
+                    if (onValidate != null && onDelete != null) const SizedBox(width: 8),
+                    if (onDelete != null)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                            onPressed: onDelete,
+                            icon: const Icon(Icons.delete, size: 18),
+                            label: const Text('Remover'),
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white)),
+                      ),
                   ],
                 ),
               ],

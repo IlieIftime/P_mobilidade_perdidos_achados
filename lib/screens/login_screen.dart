@@ -8,7 +8,8 @@ import 'homepage_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final bool isSigningUp;
+  const LoginScreen({super.key, this.isSigningUp = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -21,6 +22,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isSigningUp) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const RegistrationScreen(),
+          ),
+        );
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -82,11 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo ou ícone
-                  Icon(
-                    Icons.search_rounded,
-                    size: 80,
-                    color: AppColors.primary,
-                  ),
+                  Image.asset('assets/logo.jpg', width: 120, height: 120),
                   const SizedBox(height: 16),
 
                   // Título
@@ -182,6 +193,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+                   const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const HomepageScreen(isPreview: true),
+                        ),
+                      );
+                    },
+                    child: const Text('Ver itens sem conta (Preview)'),
+                  ),
                   const SizedBox(height: 24),
 
                   // Credenciais de teste
@@ -229,4 +251,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

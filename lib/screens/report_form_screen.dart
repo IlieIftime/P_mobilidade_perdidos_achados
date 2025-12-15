@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../utils/tile_resolver.dart';
+import '../utils/assets.dart';
 
 class ReportFormScreen extends StatefulWidget {
   const ReportFormScreen({super.key});
@@ -28,6 +29,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
 
   String _selectedCategory = 'Acessórios';
+  String? _selectedAsset;
   XFile? _selectedImage;
   bool _isLoading = false;
   LocationModel? _selectedLocation;
@@ -123,6 +125,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         imageUrl: _selectedImage != null
             ? 'https://via.placeholder.com/300x200?text=$_selectedCategory'
             : null,
+        assetImage: _selectedAsset,
         location: LocationModel(
           latitude: _selectedLocation?.latitude ?? (38.736946 + (DateTime.now().millisecond / 100000)),
           longitude: _selectedLocation?.longitude ?? (-9.142685 + (DateTime.now().millisecond / 100000)),
@@ -310,6 +313,38 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     return 'A descrição deve ter no mínimo 10 caracteres';
                   }
                   return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+               // Asset Image
+              const Text(
+                'Imagem do Item (Opcional)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedAsset,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  hintText: 'Selecione uma imagem de exemplo',
+                ),
+                items: assetImages.map((asset) {
+                  return DropdownMenuItem(
+                    value: asset,
+                    child: Text(asset.split('/').last),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedAsset = value);
                 },
               ),
               const SizedBox(height: 24),

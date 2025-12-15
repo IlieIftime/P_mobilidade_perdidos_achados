@@ -39,9 +39,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
     _mapController = MapController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.onMapCreated != null) widget.onMapCreated!(_mapController);
-      // attempt to fit bounds if there are multiple points
       _fitToPoints();
-      // If we have a MapTiler key, probe candidates to pick a working tile URL
       if (MapConfig.hasMapTilerKey) {
         _resolveTileTemplate();
       }
@@ -81,7 +79,8 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
 
   void _fitToPoints() {
     final points = widget.items
-        .map((i) => ll.LatLng(i.location.latitude, i.location.longitude))
+        .where((i) => i.location != null)
+        .map((i) => ll.LatLng(i.location!.latitude, i.location!.longitude))
         .where((p) => !(p.latitude.abs() < 0.000001 && p.longitude.abs() < 0.000001))
         .toList();
     if (points.isEmpty) return;
@@ -107,7 +106,6 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
   @override
   void didUpdateWidget(covariant OsmMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // refit when items change
     if (oldWidget.items != widget.items) {
       _fitToPoints();
     }
@@ -116,7 +114,8 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
   @override
   Widget build(BuildContext context) {
     final pointsWithItems = widget.items
-        .map((i) => MapEntry(ll.LatLng(i.location.latitude, i.location.longitude), i))
+        .where((i) => i.location != null)
+        .map((i) => MapEntry(ll.LatLng(i.location!.latitude, i.location!.longitude), i))
         .where((e) => !(e.key.latitude.abs() < 0.000001 && e.key.longitude.abs() < 0.000001))
         .toList();
 
@@ -143,7 +142,6 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
         ? ll.LatLng(widget.initialCenter!.latitude, widget.initialCenter!.longitude)
         : pointsWithItems.first.key;
 
-    // If we don't have a configured tile provider key, avoid using volunteer-run OSM tile servers.
     if (!MapConfig.hasMapTilerKey) {
       return SizedBox(
         height: 240,
@@ -158,7 +156,7 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
                 const SizedBox(height: 12),
                 const Text('Tiles públicos do OpenStreetMap não devem ser usados por aplicações de produção.'),
                 const SizedBox(height: 8),
-                const Text('Por favor, configure uma chave de tiles (ex: MapTiler) em lib/utils/map_config.dart'),
+                const Text('Por favor, configure uma chave de tiles (ex: MapTiler) em lib/utils/map_config.dart (mapTilerKey).'),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () {
@@ -184,7 +182,6 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
       );
     }
 
-    // If we're probing for a working tile template, show a loader.
     if (_probing) {
       return SizedBox(
         height: 240,
@@ -192,7 +189,6 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
       );
     }
 
-    // If probing finished but no active template was found, show an error with retry.
     if (_activeTileTemplate == null) {
       return SizedBox(
         height: 240,
@@ -237,7 +233,6 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
             userAgentPackageName: 'com.example.app',
             tileProvider: NetworkTileProvider(),
           ),
-          // Zoom control overlay
           Positioned(
             right: 8,
             top: 8,
@@ -270,7 +265,6 @@ class _OsmMapWidgetState extends State<OsmMapWidget> {
                     ))
                 .toList(),
           ),
-          // Attribution overlay
           Positioned(
             right: 8,
             bottom: 8,
