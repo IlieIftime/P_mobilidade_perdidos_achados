@@ -64,6 +64,7 @@ class AuthService {
   }
   // REGISTO COM FIREBASE
   Future<UserModel?> register(String email, String password) async {
+    // ignore: avoid_print
     print('🔥 A FUNÇÃO REGISTER FOI CHAMADA');
     try {
       final cred = await _auth.createUserWithEmailAndPassword(

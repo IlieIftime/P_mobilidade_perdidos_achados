@@ -10,7 +10,6 @@ import 'map_picker_screen.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
-import '../utils/map_config.dart';
 import '../utils/tile_resolver.dart';
 
 class ReportFormScreen extends StatefulWidget {
@@ -25,6 +24,8 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   final _descriptionController = TextEditingController();
   final _itemService = ItemService();
   final _imagePicker = ImagePicker();
+  final _phoneController = TextEditingController();
+
 
   String _selectedCategory = 'Acessórios';
   XFile? _selectedImage;
@@ -43,6 +44,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -109,11 +111,15 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
     setState(() => _isLoading = true);
 
+    print('📞 TELEFONE NO FORM: "${_phoneController.text}"');
+
+
     try {
       // Simular localização (em produção, usaria GPS)
       final item = ItemModel(
         description: _descriptionController.text.trim(),
         category: _selectedCategory,
+        phone: _phoneController.text.trim(),
         imageUrl: _selectedImage != null
             ? 'https://via.placeholder.com/300x200?text=$_selectedCategory'
             : null,
@@ -126,6 +132,9 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       await _itemService.reportItem(item);
 
       if (!mounted) return;
+
+      print('📦 ITEM PHONE: "${item.phone}"');
+
 
       // Mostrar dialog informativo em vez de apenas snackbar
       await showDialog(
@@ -387,6 +396,32 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                   ),
                 ),
               const SizedBox(height: 32),
+
+              // Telefone
+              const Text(
+                'Telefone de contacto',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              CustomTextField(
+                controller: _phoneController,
+                label: 'Número de telefone',
+                hint: 'Ex: 912345678',
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Insira um número de telefone';
+                  }
+                  if (!RegExp(r'^[0-9]{9}$').hasMatch(value)) {
+                    return 'Número inválido (9 dígitos)';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
 
               // Botão de submissão
               CustomButton(

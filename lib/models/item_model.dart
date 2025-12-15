@@ -1,10 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+
 class ItemModel {
-  final int? id;
+  final String? id;
   final String description;
   final String category;
   final String status; // 'pendente' ou 'aprovado'
   final String? imageUrl;
   final LocationModel location;
+  final String? phone;
 
   ItemModel({
     this.id,
@@ -13,28 +17,23 @@ class ItemModel {
     this.status = 'pendente',
     this.imageUrl,
     required this.location,
+    this.phone,
   });
 
-  factory ItemModel.fromJson(Map<String, dynamic> json) {
-    return ItemModel(
-      id: json['id'],
-      description: json['description'] ?? '',
-      category: json['category'] ?? '',
-      status: json['status'] ?? 'pendente',
-      imageUrl: json['imageUrl'],
-      location: LocationModel.fromJson(json['location'] ?? {}),
-    );
-  }
+  factory ItemModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
 
-  Map<String, dynamic> toJson() {
-    return {
-      if (id != null) 'id': id,
-      'description': description,
-      'category': category,
-      'status': status,
-      'imageUrl': imageUrl,
-      'location': location.toJson(),
-    };
+    return ItemModel(
+      id: doc.id,
+      description: data['description'] ?? '',
+      category: data['category'] ?? '',
+      status: data['status'] ?? 'pendente',
+      imageUrl: data['imageUrl'],
+      phone: data['phone'],
+      location: LocationModel.fromJson(
+        Map<String, dynamic>.from(data['location']),
+      ),
+    );
   }
 }
 
@@ -49,16 +48,9 @@ class LocationModel {
 
   factory LocationModel.fromJson(Map<String, dynamic> json) {
     return LocationModel(
-      latitude: (json['latitude'] ?? 0.0).toDouble(),
-      longitude: (json['longitude'] ?? 0.0).toDouble(),
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'latitude': latitude,
-      'longitude': longitude,
-    };
   }
 }
 

@@ -399,6 +399,28 @@ class _ItemDetailDialog extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Contacto:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.phone, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          item.phone!,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

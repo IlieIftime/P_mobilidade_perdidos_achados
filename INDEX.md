@@ -209,8 +209,6 @@ Guia completo de navegação para toda a documentação do projeto.
 - Itens mock
 - Estrutura de dados
 
-🔗 **[Abrir db.json](db.json)**
-
 ---
 
 ## 🗂️ Organização por Categoria
@@ -230,9 +228,6 @@ Guia completo de navegação para toda a documentação do projeto.
 
 ### ⚙️ Configuração
 - [GOOGLE_MAPS_SETUP.md](GOOGLE_MAPS_SETUP.md) - Setup do Maps
-
-### 📊 Dados
-- [db.json](db.json) - Mock data
 
 ---
 
